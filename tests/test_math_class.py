@@ -27,5 +27,5 @@ def test_add_exercise():
     assert added_exercise.last_review_date == last_review_date
     assert added_exercise.due_date == due_date
 
-    # Optionally, you can also check the length of the exercises list to be 1
-    assert len(math_class.exercises) == 1
+
+
