@@ -1,7 +1,6 @@
 import datetime
 import sqlite3
 
-
 class Exercise:
     def __init__(self, exercise_id, name, web_link, class_id=0, current_stage=0, last_review_date=None, due_date=None) -> None:
         self.exercise_id = exercise_id
