@@ -29,15 +29,11 @@ while menu_choice != 'q':
         # Updates all exercises due today as done today and advances them to the next stage
         pass
     elif menu_choice == '5':
+        #Print info for all exercises
         current_class.print_all_exercises()
-
     elif menu_choice == '6':
         #Add new exercise to class
-        exercise_id = input("Enter exercise number\n")
-        name = input("Enter exercise name\n")
-        web_link = input("Enter web link to exercises\n")
-        current_class.add_exercise(exercise_id, name, web_link)
-        print(f"Exercise {exercise_id} added to current class\n")
+        current_class.add_exercises_until_done_then_save()
     elif menu_choice == 'm':
         #Reprints the menu
         print_menu()
