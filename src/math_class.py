@@ -53,12 +53,16 @@ class Exercise:
         if self.current_stage == 6:
             self.due_date = None
         else:
-            due_date_modifier = self._get_due_date_modifier(self.current_stage)
+            due_date_modifier = self._get_due_date_modifier()
             self.due_date = review_date + datetime.timedelta(days=due_date_modifier)
 
-    def _get_due_date_modifier(self, stage):
+    def _get_due_date_modifier(self):
         due_date_modifiers = {1:1, 2:3, 3:7, 4:14, 5:28}
-        return due_date_modifiers[stage]
+        return due_date_modifiers[self.current_stage]
+    
+    def get_num_of_exercises(self):
+        exercises_per_stage = {1:5, 2:3, 3:2, 4:1, 5:1}
+        return exercises_per_stage[self.current_stage]
         
 
 class MathClass:
@@ -193,6 +197,7 @@ class MathClass:
             self.prompt_and_add_exercise()
             menu_choice = input('Add another? Type "y" to add another.')
         self.save_to_db()
+        self.exercises.sort(key=lambda x: (x.chapter, x.unit, x.number)) #Sorts new values into exercise list
 
     def load_exercises_from_database(self, dbpath='spaced-math-review.db'):
         #Loads all the exercises for the chosen class from the database into the program.
@@ -200,7 +205,7 @@ class MathClass:
             conn = sqlite3.connect(dbpath)
             cursor = conn.cursor()
 
-            query = "SELECT * FROM exercises WHERE class_id = ?"
+            query = "SELECT * FROM exercises WHERE class_id = ? ORDER BY chapter, unit, number"
 
             cursor.execute(query, (self.class_id,))
 
@@ -297,12 +302,20 @@ class MathClass:
             if exercise.current_stage == 1:
                 count += 1
         return count
+    
+    def _find_number_of_stage_zero_exercises(self):
+        count = 0
+        for exercise in self.exercises:
+            if exercise.current_stage == 0:
+                count += 1
+        return count
             
     def start_next_exercise(self):
         #Takes the next exercise at stage 0 and sets the stage to 1 and the due date to today.
-        num_stage1_exercises = self._find_number_of_stage_one_exercises()
-
-        if num_stage1_exercises == 0:
+        
+        #Check to make sure there are exercises to add
+        num_stage0_exercises = self._find_number_of_stage_zero_exercises()
+        if num_stage0_exercises == 0:
             print("No exercises available to add.")
             return
 
@@ -313,7 +326,7 @@ class MathClass:
         next_exercise_name = self.exercises[next_exercise_index].name
 
         #Get number of exercises currently at stage 1 
-        
+        num_stage1_exercises = self._find_number_of_stage_one_exercises()
 
         #Confirm 
         print(f"\nExercise {next_exercise_id}: {next_exercise_name} will be changed to stage 1 and the due date will be set to today.")
@@ -353,12 +366,12 @@ class MathClass:
             return
         return review_date
 
-    def is_there_reviews_to_advance(self, review_date):
-        reviews_available = False
+    def count_reviews_to_advance(self, review_date):
+        count = 0
         for exercise in self.exercises:
-            if exercise.due_date <= review_date and exercise.due_date:
-                reviews_available = True
-        return reviews_available
+            if exercise.due_date and exercise.due_date <= review_date:
+                count += 1
+        return count
 
     def is_date_valid(self, date_string):
         date_format = date_format = "%Y-%m-%d"
@@ -371,18 +384,33 @@ class MathClass:
     def mark_reviews_done(self):
         #Mark all exercises due before the specified review date as complete and advances stage appropriately.
         review_date = self.get_review_date()
+
+        #If the review date is None then the update is aborted.
         if not(review_date):
             print("Process aborted. No exercises advanced.")
             return
-        has_reviews = self.is_there_reviews_to_advance(review_date)
-        if not(has_reviews):
+        
+        #If there are no reviews due for this review date then no updates are attempted.
+        num_exercises_to_advance = self.count_reviews_to_advance(review_date)
+        if num_exercises_to_advance == 0:
             print("No exercises are due for this review date.")
             return
+        
+        #Confirm with user 
+        confirm = input(f"\nUsing review date of {review_date}, {num_exercises_to_advance} will be advanced.\n"
+                        "Do you wish to proceed? Type y to proceed.\n")
+        
+        if not(confirm.lower() == "y"):
+            print("Advancement aborted.")
+            return
+        
+        #Updates exercises due before review date.
         for exercise in self.exercises:
-            if exercise.due_date <= review_date and exercise.due_date:
+            if exercise.due_date and exercise.due_date <= review_date:
                 exercise.advance_stage(review_date)
         print("All exercises due before review date have been advanced.")
 
+        #Saves updates to the database
         self.save_to_db()
         
 
